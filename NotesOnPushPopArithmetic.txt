@@ -1,0 +1,433 @@
+
+
+########################################################################################################################
+                                          ARITHMETIC AND LOGICAL COMMANDS
+########################################################################################################################
+
+Stack pointer points to first vacant value on top of stack
+
+STACK
+N-1 | x
+N   | y
+SP->|
+
+NAME|OPERATION|RESULT AT|SP AT|
+add |  x + y  |  N-1    |  N  |
+sub |  x - y  |  N-1    |  N  |
+neg |  -x     |   N     | N+1 |
+eq  |  x == y |  N-1    |  N  |
+gt  |  x > y  |  N-1    |  N  |
+lt  |  x < y  |  N-1    |  N  |
+and |  x & y  |  N-1    |  N  |
+or  |  x | y  |  N-1    |  N  |
+not |  !x     |   N     | N+1 |
+
+
+----------------------------------------------------ADD-----------------------------------------------------------------
+Adds and discards the top two values in the stack, placing the sum at the top of the stack.
+
+INITIAL
+SP=258, @257=10, @256=20
+FINAL
+SP=257, @257=10, @256=30
+
+Assembly:
+@0     // SP=258, A=0  , M=258, D=0      Select Stack Pointer
+AM=M-1 // SP=258, A=257, M=10 , D=0      Active memory is now top of stack, Stack is decremented
+D=M    // SP=257, A=257, M=10 , D=10     Store in D
+A=A-1  // SP=257, A=256, M=20 , D=10     Select second from top of stack
+M=M+D  // SP=257, A=256, M=30 , D=10     Perform addition
+
+-------------------------------------------------SUBTRACT---------------------------------------------------------------
+Subtracts the value at the top of the stack from the value below. Discards both and places difference at top of stack.
+
+INITIAL
+SP=258, @257=10, @256=20
+FINAL
+SP=257, @257=10, @256=10
+
+Assembly:
+@0     // SP=258, A=0  , M=258, D=0      Select Stack Pointer
+AM=M-1 // SP=258, A=257, M=10 , D=0      Active memory is now top of stack, Stack is decremented
+D=M    // SP=257, A=257, M=10 , D=10     Store in D
+A=A-1  // SP=257, A=256, M=20 , D=10     Select second from top of stack
+M=M-D  // SP=257, A=256, M=30 , D=10     Perform subtraction
+
+--------------------------------------------------NEGATE----------------------------------------------------------------
+Negates the value at the top of the stack
+
+INITIAL
+SP=257, @256=10
+FINAL
+SP=257,@256=-10
+
+Assembly:
+@0     // SP=257, A=0  , M=257, D=0    Select Stack Pointer
+A=M-1  // SP=257, A=256, M=10 , D=0    Select last value in stack
+M=-M   // SP=257, A=256, M=-10, D=0    Negate and store
+
+
+---------------------------------------------------AND------------------------------------------------------------------
+Bitwise AND operation on top two stack elements
+
+0111001(57) AND 0011100(28) = 0011000(24)
+
+INITIAL
+SP=258, @257=57, @256=28
+FINAL
+SP=257, @257=57, @256=24
+
+@0     // SP=258, A=0  , M=258, D=0    Select Stack Pointer
+AM=M-1 // SP=257 ,A=257, M=57 , D=0    Decrement Stack and set active memory to last value in stack
+D=M    // SP=257 ,A=257, M=57 , D=57   Store value
+A=A-1  // SP=257 ,A=256, M=28 , D=57   Decrement address to second last value in stack
+M=M&D  // SP=257 ,A=256, M=24 , D=57   Store bitwise AND result from stored and active values in memory
+
+---------------------------------------------------OR-------------------------------------------------------------------
+Bitwise OR operation on top two stack elements
+
+1010010(82) OR 0011000(24) = 1011010(90)
+
+INITIAL
+SP=258, @257=82, @256=24
+FINAL
+SP=257, @257=82, @256=90
+
+@0     // SP=258, A=0  , M=258, D=0    Select Stack Pointer
+AM=M-1 // SP=257 ,A=257, M=82 , D=0    Decrement Stack and set active memory to last value in stack
+D=M    // SP=257 ,A=257, M=82 , D=82   Store value
+A=A-1  // SP=257 ,A=256, M=24 , D=82   Decrement address to second last value in stack
+M=M&D  // SP=257 ,A=256, M=90 , D=82   Store bitwise OR result from stored and active values in memory
+
+--------------------------------------------------NOT-------------------------------------------------------------------
+Inverts the bits of the value at the top of the stack
+
+INITIAL
+SP=257, @256=0
+FINAL
+SP=257,@256=-1
+
+Assembly:
+@0     // SP=257, A=0  , M=257, D=0    Select Stack Pointer
+A=M-1  // SP=257, A=256, M=0  , D=0    Select last value in stack
+M=!M   // SP=257, A=256, M=-1 , D=0    Invert and store
+
+---------------------------------------------------EQUALS---------------------------------------------------------------
+Compares the top two values on the stack and replaces with -1 if true and 0 otherwise.
+
+INITIAL                                               |INITIAL
+SP=258, @257=1, @256=1                                |SP=258, @257=1, @256=0
+FINAL                                                 |FINAL
+SP=257, @257=1, @256=-1                               |SP=257, @257=1, @256=-1
+                                                      |
+@0     // SP=258, A=0  , M=258, D=0 Select Stack      |@0     // SP=258, A=0  , M=258, D=0 Select Stack
+AM=M-1 // SP=257, A=257, M=1  , D=0 Decrement         |AM=M-1 // SP=257, A=257, M=1  , D=0 Decrement
+D=M    // SP=257, A=257, M=1  , D=1 Store             |D=M    // SP=257, A=257, M=1  , D=1 Store
+A=A-1  // SP=257, A=256, M=1  , D=1 Decrement         |A=A-1  // SP=257, A=256, M=0  , D=1 Decrement
+D=M-D  // SP=257, A=256, M=1  , D=0 Check Equality    |D=M-D  // SP=257, A=256, M=0  , D=1 Check Equality
+M=-1   // SP=257, A=256, M=-1 , D=0 Placeholder True  |M=-1   // SP=257, A=256, M=-1 , D=1 Placeholder True
+@Tn    // SP=257, A=Tn , M=X  , D=0 Address jump      |@Tn    // SP=257, A=Tn , M=X  , D=1 Address jump
+D;JEQ  // SP=257, A=Tn , M=X  , D=0 Jump condition met|D;JEQ  // SP=257, A=Tn , M=X  , D=1 Jump condition failed
+@0     //                           Skip              |@0     // SP=257, A=0  , M=257, D=1 Find top of Stack
+A=M-1  //                           Skip              |A=M-1  // SP=257, A=256, M=-1 , D=1
+M=0    //                           Skip              |M=0    // SP=257, A=256, M=0  , D=1 Set to false
+(Tn)   //                           Resume            |(Tn)   // SP=257, A=256, M=0  , D=1 Continue
+
+------------------------------------------------GREATER THAN------------------------------------------------------------
+Checks if x is greater than y and replaces x with -1 if true or 0 if not.
+
+INITIAL                                               |INITIAL
+SP=258, @257=4, @256=5                                |SP=258, @257=5, @256=5
+FINAL                                                 |FINAL
+SP=257, @257=4, @256=-1                               |SP=257, @257=5, @256=0
+                                                      |
+@0     // SP=258, A=0  , M=258, D=0 Select Stack      |@0     // SP=258, A=0  , M=258, D=0 Select Stack
+AM=M-1 // SP=257, A=257, M=4  , D=0 Decrement         |AM=M-1 // SP=257, A=257, M=5  , D=0 Decrement
+D=M    // SP=257, A=257, M=4  , D=4 Store             |D=M    // SP=257, A=257, M=5  , D=5 Store
+A=A-1  // SP=257, A=256, M=5  , D=4 Decrement         |A=A-1  // SP=257, A=256, M=5  , D=5 Decrement
+D=M-D  // SP=257, A=256, M=5  , D=1 Check greater     |D=D-M  // SP=257, A=256, M=5  , D=0 Check greater
+M=-1   // SP=257, A=256, M=-1 , D=0 Placeholder True  |M=-1   // SP=257, A=256, M=-1 , D=0 Placeholder True
+@Tn    // SP=257, A=Tn , M=X  , D=0 Address jump      |@Tn    // SP=257, A=Tn , M=X  , D=0 Address jump
+D;JGT  // SP=257, A=Tn , M=X  , D=1 Jump condition met|D;JGT  // SP=257, A=Tn , M=X  , D=-1 Jump condition failed
+@0     //                           Skip              |@0     // SP=257, A=0  , M=257, D=0 Find top of Stack
+A=M-1  //                           Skip              |A=M-1  // SP=257, A=256, M=-1 , D=0
+M=0    //                           Skip              |M=0    // SP=257, A=256, M=0  , D=0 Set to false
+(Tn)   //                           Resume            |(Tn)   // SP=257, A=256, M=0  , D=0 Continue
+
+--------------------------------------------------LESS THAN-------------------------------------------------------------
+Checks if x is less than y and replaces x with -1 if true or 0 if not.
+
+INITIAL                                               |INITIAL
+SP=258, @257=6, @256=5                                |SP=258, @257=5, @256=5
+FINAL                                                 |FINAL
+SP=257, @257=4, @256=-1                               |SP=257, @257=5, @256=0
+                                                      |
+@0     // SP=258, A=0  , M=258, D=0 Select Stack      |@0     // SP=258, A=0  , M=258, D=0 Select Stack
+AM=M-1 // SP=257, A=257, M=6  , D=0 Decrement         |AM=M-1 // SP=257, A=257, M=5  , D=0 Decrement
+D=M    // SP=257, A=257, M=6  , D=6 Store             |D=M    // SP=257, A=257, M=5  , D=5 Store
+A=A-1  // SP=257, A=256, M=5  , D=6 Decrement         |A=A-1  // SP=257, A=256, M=5  , D=5 Decrement
+D=M-D  // SP=257, A=256, M=5  , D=-1 Check condition  |D=D-M  // SP=257, A=256, M=5  , D=0 Check Equality
+M=-1   // SP=257, A=256, M=-1 , D=-1 Placeholder True |M=-1   // SP=257, A=256, M=-1 , D=0 Placeholder True
+@Tn    // SP=257, A=Tn , M=X  , D=-1 Address jump     |@Tn    // SP=257, A=Tn , M=X  , D=0 Address jump
+D;JLT  // SP=257, A=Tn , M=X  , D=-1 Condition met    |D;JLT  // SP=257, A=Tn , M=X  , D=0 Jump condition failed
+@0     //                           Skip              |@0     // SP=257, A=0  , M=257, D=0 Find top of Stack
+A=M-1  //                           Skip              |A=M-1  // SP=257, A=256, M=-1 , D=0
+M=0    //                           Skip              |M=0    // SP=257, A=256, M=0  , D=0 Set to false
+(Tn)   //                           Resume            |(Tn)   // SP=257, A=256, M=0  , D=0 Continue
+
+########################################################################################################################
+                                             PUSH/POP SEGMENT [S] AT INDEX [I]
+########################################################################################################################
+
+PUSH Commands places a value at the top of the stack
+POP Command moves the value at the top of the stack to the designated memory segment
+
+
+RAM| Points to/Section
+ 0 | Top of Stack
+ 1 | Local
+ 2 | Argument
+ 3 | This
+ 4 | That
+ 5 | Temp0
+ 6 | Temp1
+ 7 | Temp2
+ 8 | Temp3
+ 9 | Temp4
+10 | Temp5
+11 | Temp6
+12 | Temp7
+13 | R13
+14 | R14
+15 | R15
+16 | Static 0
+-- | --
+255| Static 255
+256| Stack
+
+----------------------------------------PUSH/POP [LOCAL/ARG/THIS/THAT] [INDEX]------------------------------------------
+
+SEGMENT|ADDRESS
+LOCAL  | 1
+ARG    | 2
+THIS   | 3
+THAT   | 4
+
+PUSH
+
+Takes the value of segment [S] at index [I] and adds it to the stack
+
+@INDEX// Load in index
+D=A   // Store in D register
+@S    // Select segment pointer
+A=M   // Navigate to segment
+A=A+D // Add index to address
+D=M   // Store value
+@0    // Select stack
+A=M   // Navigate to stack
+M=D   // Extend stack with stored value
+@0    // Select stack
+M=M+1 // Increment stack
+
+POP
+
+Takes the value at the top of the Stack and moves it into the desired location
+@INDEX// Load in index
+D=A   // Store in D
+@S    // Load in Segment
+D=D+M // Add base Address to Index in D
+@R13  // Select general register
+M=D   // Store Segment address
+@0    // Go to Stack
+AM=M-1 // Decrement Stack
+D=M   // Store in D
+@R13  // Go to register with segment address
+A=M   // Go to segment address
+M=D   // Update register
+
+------------------------------------------------PUSH CONSTANT VALUE-----------------------------------------------------
+Adds a constant to the top of the stack. Constant segment exists only for semantic reasons
+
+PUSH
+
+@VALUE// Load value
+D=A   // Store in D
+@0    // Select Stack
+A=M   // Go to Stack
+M=D   // Set to Value
+@0    // Go to Stack
+M=M+1 // Increment Stack
+
+------------------------------------------------PUSH/POP STATIC [INDEX]-------------------------------------------------
+
+PUSH
+
+STATIC LABEL: @fileName.INDEX
+
+e.g. Third static var in Foo.vm: @Foo.3
+
+@LABEL // Select label which is automatically assigned to the static segment by the assembler
+D=M    // Store value
+@0     // Select Stack
+A=M    // Go to Stack
+M=D    // Set to value
+@0     // Go to Stack
+M=M+1  // Increment Stack
+
+POP
+
+Takes the value at the top of the Stack and moves it into the desired location
+@0     // Go to Stack
+AM=M-1 // Decrement Stack and go to Stack Pointer
+D=M    // Store in D
+@LABEL // Go to static variable
+M=D    // Update register
+
+-------------------------------------------------PUSH/POP TEMP [INDEX]--------------------------------------------------
+Adds a value from the TEMP section of memory, from RAM5 to RAM12
+
+@INDEX // Load in index
+D=A    // Store in D
+@5     // Select start of Temp registers
+A=A+D  // Go to Temp INDEX
+D=M    // Store value
+@0     // Select Stack
+A=M    // Go to Stack
+M=D    // Set to value
+@0     // Go to Stack
+M=M+1  // Increment Stack
+
+POP
+
+Takes the value at the top of the Stack and moves it into the desired location
+@I    // Load in index
+D=A   // Store in D
+@5    // Load in Temp Segment base
+D=D+M // Add base Address to Index in D
+@R13  // Select general register
+M=D   // Store Segment address
+@0    // Go to Stack
+AM=M-1// Decrement Stack and select top value
+D=M   // Store in D
+@R13  // Go to register with segment address
+A=M   // Go to segment address
+M=D   // Update register
+
+------------------------------------------------PUSH/POP POINTER [0/1]--------------------------------------------------
+Pointer 0 points to THIS and Pointer 1 points to THAT
+
+PUSH Pointer[0/1]
+
+@THIS/THAT  // Select register
+D=M         // Store value
+@0          // Select Stack
+A=M         // Navigate to Stack
+M=D         // Update Stack
+@0          // Select Stack
+M=M+1       // Increment Stack Pointer
+
+POP Pointer 0/1
+
+@0         // Select Stack
+AM=M-1     // Decrement Stack and select previous top of Stack
+D=M        // Store in D
+@THIS/THAT // Select This/That
+M=D        // Set Value
+
+########################################################################################################################
+                                                           TRENDS
+########################################################################################################################
+
+-----------------------------------------------ARITHMETIC AND LOGICAL COMMANDS------------------------------------------
+
+NEGATE and NOT both result in the top of the stack being replaced and the stack pointer being unchanged
+
+GENERAL FORMULA NEG/NOT
+
+@0
+A=M-1
+M=[op]M // where op = - for negate and ! for not
+
+AND, OR, SUB, ADD all replace the top two Stack elements with the result and decrement the Stack Pointer
+
+GENERAL FORMULA AND/OR/ADD/SUB
+
+@0
+AM=M-1
+D=M
+A=A-1
+M=M[op]D // where op = +/-/&/| for add/sub/and/or respectively
+
+EQUALS, GREATER THAN, LESS THAN all replace the top two with the result and decrement the Stack Pointer but also require
+branching
+
+GENERAL FORMULA EQ/LT/GT
+
+@0
+AM=M-1
+D=M
+A=A-1
+D=D-M
+M=-1
+@Tn
+D;[op]  // where op = JEQ/JGT/JLT for equals/greater than/less than
+@0
+A=M-1
+M=0
+(Tn)
+
+---------------------------------------------------------PUSH/POP COMMANDS----------------------------------------------
+GENERAL FORMULA PUSH LOCAL, ARG, THIS, THAT, TEMP
+
+SEGMENT| S
+LOCAL  | 1
+ARG    | 2
+THIS   | 3
+THAT   | 4
+TEMP   | 5
+STATIC | 16 // The start point for variable label assignment during assembly
+
+@INDEX
+D=A
+@S
+[A=M] // Navigate to segment if not TEMP
+A=A+D
+D=M
+@0
+A=M
+M=D
+@0
+M=M+1
+
+GENERAL FORMULA PUSH CONSTANT, POINTER [0/1]
+
+@[THIS/THAT/INDEX] // Select register or INDEX if CONSTANT
+[D=M/D=A]          // Store value in Memory if POINTER or index value if CONSTANT
+@0
+A=M
+M=D
+@0
+M=M+1
+
+GENERAL FORMULA POP LOCAL, ARG, THIS, THAT, TEMP
+
+@INDEX
+D=A
+@S
+[D=D+M/D=D+A]  // Store sum of pointer value if LOCAL/ARG/THIS/THAT or sum of address if STATIC/TEMP
+@R13
+M=D
+@0
+AM=M-1
+D=M
+@R13
+A=M
+M=D
+
+POP POINTER [0/1]
+
+@0
+AM=M-1
+D=M
+@THIS/THAT
+M=D

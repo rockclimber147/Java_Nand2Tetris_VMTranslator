@@ -1,0 +1,273 @@
+########################################################################################################################
+                                            BRANCHING COMMANDS
+########################################################################################################################
+
+label     // Marks the destination of goto commands
+goto      // Jump to execute the command after label UNCONDITIONALLY
+if-goto   // Jump to execute the command after label CONDITIONALLY
+
+EXAMPLE:
+
+function mult 2 // Returns x * y
+    push 0
+    pop sum
+    push 1
+    pop n
+label WHILE_LOOP // Initiates loop while (n < y)
+    push n
+    push y
+    gt
+    if-goto END_LOOP // conditional jump to END_LOOP when n > y (pop top of stack in d, then D;JLT as -1 is true)
+    push sum
+    push x
+    add
+    pop sum
+    push n
+    push 1
+    add
+    pop n
+    goto WHILE_LOOP // unconditional jump to WHILE_LOOP (0;JMP)
+label END_LOOP
+    push sum
+    return
+
+-------------------------------------------------LABEL------------------------------------------------------------------
+
+label N // Makes jump destination
+(N)
+
+-------------------------------------------------GOTO-------------------------------------------------------------------
+
+goto N // Unconditional jump to N
+
+@N
+0;JMP
+
+-------------------------------------------------IF-GOTO----------------------------------------------------------------
+
+if-goto N // Conditional Jump to N
+
+[Carry out condition such that top of stack contains true/false]
+@0      // Select Stack
+AM=M-1  // Decrement stack and put last value in active memory
+D=M     // Prepare jump
+@N
+D;JNE   // Jump if condition is met (D == -1)
+
+########################################################################################################################
+                                                   FUNCTION COMMANDS
+########################################################################################################################
+
+---------------------------------------------------CALL-----------------------------------------------------------------
+EXAMPLE:
+push 8
+push 5
+call mult 2 // call function nArgs where nArgs are the arguments pushed to the stack prior to the call
+            // the arguments will be replaced by the value returned by the callee
+
+---------------------------------------------------FUNCTION-------------------------------------------------------------
+
+EXAMPLE:
+
+CALLER
+...                       // This is the caller, which calls the function mult.
+// Computes 8 * 5 + 7     // Mult becomes the callee
+push 8                    // 8 and 5 are to be replaced by their product as they become each argument of mult.
+push 5                    //
+call mult 2               // Here is where it calls the function
+push 7                    //
+add                       //
+...
+
+CALLEE
+// Returns x * y          // Syntax: function functionName nVars
+function mult 2           // The function will have nVars local variables, from local 0, local 1, ... , local nVars.
+push 0                    //
+pop sum                   // sum here is local 0
+push 1                    //
+pop n                     // n here is local 1
+label WHILE_LOOP          //
+push n                    //
+push y                    // y here is argument 1
+gt                        //
+if-goto END_LOOP          //
+push sum                  //
+push x                    // x here is argument 0
+add                       //
+pop sum                   //    LOCAL  | ARGUMENT
+push n                    //   0  |  1 |  0  |  1
+push 1                    //  sum |  n |  x  |  y
+add                       //
+pop n                     //
+goto WHILE_LOOP           //
+label END_LOOP            //
+push sum                  // this is the return value, the last value pushed onto the Stack before the return statement
+return                    // ends the function declaration
+
+
+-------------------------------------------------FUNCTION CALL----------------------------------------------------------
+
+Each function sees its own 8 memory segments and its own working stack
+These are created when the function starts running. There can be multiple function call chains, but only the running
+function can return => Last In, First Out (LIFO)
+When a function returns, the arguments on the caller stack are replaced with the return value
+
+E.G.
+
+addr|STACK                  addr|STACK
+256 | ...    AFTER we       256 | ...
+257 | 10    call mult 2  -> 257 | 80 <- return value of mult(10,8)
+258 | 8                     258 |    <- SP
+259 |    <- SP
+
+In the above, 10 and 8 were arguments as we called mult 2. The arg pointer must at some point be set to the first
+argument input argument (10 in this case). If ARG isn't in use it can be set now but if a function is called within a
+function this will cause an issue. We must save the state of the caller by doing the following:
+
+PSEUDO ASSEMBLY CODE:
+
+push returnAddress -> Label onto which we will navigate after the function returns
+push LCL  \
+push ARG   \_ Save the pointer values in each register
+push THIS  /
+push THAT /
+set ARG to SP - 5 - nArgs (sets the ARG pointer to the first value added to the stack as an argument)
+set LCL = SP (get ready to push values to stack for the called function)
+goto mult (jump to called function)
+(returnAddress)
+
+State of the Stack:
+
+addr|STACK
+256 | ...
+257 | 10             |ARG 0
+258 | 8              |ARG 1
+259 | return address
+260 | saved LCL
+261 | saved ARG
+262 | saved THIS
+263 | saved THAT
+264 | SP
+
+ASSEMBLY CODE
+
+// push return address
+@functionName$ret.N
+D=A
+@0
+A=M
+M=D
+@0
+M=M+1
+
+// Push 1,2,3,4 (lcl, arg, this, that)
+@1,2,3,4
+D=M
+@0
+A=M
+M=D
+@0
+M=M+1
+
+// Set up argument pointer
+@0
+D=M   // Get Stack Pointer
+@2
+M=D   // Set ARG to SP
+@(5+nArgs)
+D=A   // Get offset
+@2
+M=M-D // Subtract Offset
+
+// Set LCL to be SP
+@0
+D=M
+@1
+M=D
+
+//goto function
+@(calledFunctionName)
+0;JMP
+
+//Return address
+(functionName$ret.N)
+---------------------------------------------FUNCTION COMMAND-----------------------------------------------------------
+
+The function command is executed after the function is called.
+Start by making a label (functionName) or (mult) in the above example
+Set all local variables to 0 initially
+
+PSEUDO ASSEMBLY CODE
+(functionName)
+repeat nVars times push 0 // This builds the local segment of the called function as initially LCL is the SP
+//do function
+
+----------------------------------------------RETURN COMMAND------------------------------------------------------------
+
+Must return a value pushed to the Stack, or otherwise the value at the top of the Stack after returning is the return
+value.
+
+endFrame = LCL
+retAddr = *(endFrame - 5)  // this gets us to the return address pushed in the above
+pop Arg 0                  // pops the return value (top of stack) to arg0
+SP = ARG + 1               // reset stack pointer
+THAT = *(endFrame - 1)    \
+THIS = *(endFrame - 2)     \_ reset segments
+ARG = *(endFrame - 3)      /
+LCL = *(endFrame - 4)     /
+goto retAddr              // Jump back to callers code
+
+ASSEMBLY CODE
+
+//endFrame = LCL
+@1
+D=M
+@R13
+M=D
+
+// get retAddr
+@5
+D=A
+@13
+D=M-D //(retAddr = *(endFrame - 5))
+A=D   // go to retAddr
+D=M   // get retAddr
+@14  // stored retAddr
+M=D
+
+// pop SP to ARG0
+@0
+AM=M-1
+D=M
+@2 // ARG register
+A=M
+M=D
+
+//Set SP to ARG + 1
+@2
+D=M+1
+@0
+M=D
+
+//reset segments
+// remember:
+// SEGMENT| S
+// LOCAL  | 1
+// ARG    | 2
+// THIS   | 3
+// THAT   | 4
+// TEMP   | 5
+// STATIC | 16
+
+for (4,3,2,1):
+@R13
+M=M-1
+A=M
+M=D
+@N
+D=M
+
+// goto retAddr
+@R14
+0;JMP
+
